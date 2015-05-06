@@ -45,6 +45,9 @@ public class BTSoundService extends IntentService {
 
         am = (AudioManager) this.getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
 
+        //if(am.isSpeakerphoneOn())
+            //Log.d("BTTest", "test");
+
         // Request audio focus for playback
         int result = am.requestAudioFocus(afChangeListener,
                 // Use the music stream.
