@@ -68,12 +68,12 @@ public class BTSoundService extends IntentService {
 
     private boolean docking = false;
 
-    private short maxValue(short[] values, int bufferlength) {
-        short max = 0;
+    private int numHighAmp(short[] values, int bufferlength) {
+        int n=0;
         for(int i=0; i<bufferlength; i+=5)
-            if(max < values[i])
-                max = values[i];
-        return max;
+            if(300 < values[i])
+                n++;
+        return n;
     }
     private void initCapture() {
 
@@ -104,9 +104,9 @@ public class BTSoundService extends IntentService {
                 //Log.i("Map", "Writing new data to buffer");
                 short[] buffer = buffers[ix++ % buffers.length];
                 N = recorder.read(buffer,0,buffer.length);
-                amp = maxValue(buffer, 100);
+                amp = numHighAmp(buffer, 100);
                 Log.i("BTTest", "Amplitute: " + amp);
-                if(amp > 250) {
+                if(amp > 5) {
                     if(!docking) {
                         track.play();
                         //am.requestAudioFocus(afChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
