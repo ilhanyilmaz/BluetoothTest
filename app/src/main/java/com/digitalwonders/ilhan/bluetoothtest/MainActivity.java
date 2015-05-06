@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ArrayAdapter;
@@ -48,6 +49,7 @@ public class MainActivity extends ActionBarActivity {
     private BluetoothAdapter mBluetoothAdapter;
     private ArrayAdapter<String> mArrayAdapter;
     private TextView textView;
+    private Intent mServiceIntent;
 
     private void init() {
         textView = (TextView) findViewById(R.id.textView);
@@ -74,10 +76,16 @@ public class MainActivity extends ActionBarActivity {
         ListView listView = (ListView) findViewById(R.id.listView);
         listView.setAdapter(mArrayAdapter);
 
-        queryPairedDeviced();
+        queryPairedDevices();
+
+        Log.d("BTTest", "Starting intent");
+        mServiceIntent = new Intent(this, BTSoundService.class);
+        this.startService(mServiceIntent);
+        //Log.d("BTTest", "Starting intent");
+        //mServiceIntent.setData(Uri.parse(dataUrl));
     }
 
-    private void queryPairedDeviced() {
+    private void queryPairedDevices() {
         Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
 // If there are paired devices
         if (pairedDevices.size() > 0) {
