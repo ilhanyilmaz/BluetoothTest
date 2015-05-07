@@ -1,5 +1,6 @@
 package com.digitalwonders.ilhan.bluetoothtest;
 
+import android.app.Activity;
 import android.app.IntentService;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -13,7 +14,9 @@ import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,7 +40,6 @@ public class BTSoundService extends IntentService {
     private static final String NAME = "BluetoothChatSecure";
     private static final UUID MY_UUID = UUID.fromString("fa87c0d0-afac-11de-8a39-0800200c9a66");
 
-    private ConnectedThread connectedThread;
     private BluetoothAdapter mBluetoothAdapter = null;
 
     private AudioTrack track = null;
@@ -51,10 +53,11 @@ public class BTSoundService extends IntentService {
 
     private AudioManager am;
 
+    private BluetoothChatService mChatService = null;
+
     public BTSoundService() {
         super("BTSoundService");
 
-        mHandler = this;
     }
 
     AudioManager.OnAudioFocusChangeListener afChangeListener = new AudioManager.OnAudioFocusChangeListener() {
@@ -75,42 +78,24 @@ public class BTSoundService extends IntentService {
     protected void onHandleIntent(Intent workIntent) {
         // Gets data from the incoming Intent
         //String dataString = workIntent.getDataString();
+        String address = null;
+        if(workIntent.getExtras() != null)
+            address= workIntent.getExtras().getString(MainActivity.EXTRA_DEVICE_ADDRESS);
 
-        String address = workIntent.getExtras()
-                .getString(MainActivity.EXTRA_DEVICE_ADDRESS);
+
 
         Log.d("BTTest", "address:" + address);
 
+
+        // Initialize the BluetoothChatService to perform bluetooth connections
+        mChatService = new BluetoothChatService(mHandler);
+
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
-        if(address.equals("listening")) {
-            /*BluetoothServerSocket tmp = null;
-            try {
-                // MY_UUID is the app's UUID string, also used by the client code
-                tmp = mBluetoothAdapter.listenUsingRfcommWithServiceRecord(NAME, MY_UUID);
-            } catch (IOException e) { }
-            mmServerSocket = tmp;*/
-            try {
-                mmServerSocket = mBluetoothAdapter.listenUsingRfcommWithServiceRecord(NAME, MY_UUID);
-                mmSocket = mmServerSocket.accept();
-            } catch (IOException e) {
-                Log.e("listen socket error:", e.toString());
-            }
-
-
-        }
-        else {
+        if(address != null) {
             BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
-            try {
-                mmSocket = device.createRfcommSocketToServiceRecord(MY_UUID);
-            } catch (IOException e) {
-                Log.e("socket error:", e.toString());
-            }
+            mChatService.connect(device);
         }
-
-        connectedThread = new ConnectedThread(mmSocket);
-        connectedThread.start();
-
 
         am = (AudioManager) this.getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
 
@@ -131,10 +116,6 @@ public class BTSoundService extends IntentService {
             Log.d("BTTest", "focus granted");
         }*/
 
-        initCapture();
-        // Do work here, based on the contents of dataString
-
-
 
     }
 
@@ -147,8 +128,8 @@ public class BTSoundService extends IntentService {
             if (values[i]>5000)
                 n++;
         }
-        if (max>5000)
-            Log.i("BTTest max", ":" +max );
+        //if (max>5000)
+        //    Log.i("BTTest max", ":" +max );
         return n;
     }
     private void initCapture() {
@@ -207,14 +188,14 @@ public class BTSoundService extends IntentService {
                     //track.write(buffer, 0, buffer.length);
                     ByteBuffer bb = ByteBuffer.allocate(buffer.length*2);
                     bb.asShortBuffer().put(buffer);
-                    Log.i("BBTest", "record buffer: " + bb.array());
-                    connectedThread.write(bb.array());
+                    //Log.i("BBTest", "record buffer: " + bb.array());
+                    mChatService.write(bb.array());
                 }
                 else if(timerRunning) {
                     //track.write(buffer, 0, buffer.length);
                     ByteBuffer bb = ByteBuffer.allocate(buffer.length*2);
                     bb.asShortBuffer().put(buffer);
-                    connectedThread.write(bb.array());
+                    mChatService.write(bb.array());
                 }
                 else {
                     //track.stop();
@@ -239,7 +220,7 @@ public class BTSoundService extends IntentService {
             track.release();
         }
     }
-    protected void streamSound(byte[] buffer, int bytes) {
+    protected void streamSound(byte[] buffer) {
         Log.i("BBTest", "output buffer 1: " + buffer);
         //am.requestAudioFocus(afChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK);
         if(track == null)
@@ -291,78 +272,80 @@ public class BTSoundService extends IntentService {
         };
     }
 
-    protected BTSoundService mHandler;
-    private class ConnectedThread extends Thread {
-        private final BluetoothSocket mmSocket;
-        private final InputStream mmInStream;
-        private final OutputStream mmOutStream;
-
-        public ConnectedThread(BluetoothSocket socket) {
-
-            mmSocket = socket;
-            InputStream tmpIn = null;
-            OutputStream tmpOut = null;
-
-            // Get the input and output streams, using temp objects because
-            // member streams are final
-            try {
-                tmpIn = socket.getInputStream();
-                tmpOut = socket.getOutputStream();
-            } catch (IOException e) {
-                Log.i("ConnectedTread", e.toString());
-            }
-
-            mmInStream = tmpIn;
-            mmOutStream = tmpOut;
-
-            if(mmInStream == null)
-                Log.e("ConnectedTread","input stream is null!");
-            if(mmOutStream == null)
-                Log.e("ConnectedTread","output stream is null!");
-        }
-
-        public void run() {
-            byte[] buffer = new byte[1024];  // buffer store for the stream
-            int bytes; // bytes returned from read()
-
-            // Keep listening to the InputStream until an exception occurs
-            while (true) {
-                if(mmInStream == null) {
-                    Log.w("ConnectedTread:run", "input stream is null");
-                    return;
-                }
-                try {
-                    // Read from the InputStream
-                    bytes = mmInStream.read(buffer);
-                    Log.i("BBTest", "input buffer: " + buffer);
-                    // Send the obtained bytes to the UI activity
-                    mHandler.streamSound(buffer, bytes);
-                } catch (IOException e) {
-                    Log.i("ConnectedTread:run", e.toString());
-                    break;
-                }
-            }
-        }
-
-        /* Call this from the main activity to send data to the remote device */
-        public void write(byte[] bytes) {
-            if(mmOutStream== null) {
-                Log.w("ConnectedTread:write", "output stream is null");
-                return;
-            }
-            Log.i("ConnectedTread:write", "output buffer: " + bytes);
-            try {
-                mmOutStream.write(bytes);
-            } catch (IOException e) {
-                Log.i("ConnectedTread:write", e.toString());
-            }
-        }
-
-        /* Call this from the main activity to shutdown the connection */
-        public void cancel() {
-            try {
-                mmSocket.close();
-            } catch (IOException e) { }
-        }
+    /**
+     * Updates the status on the action bar.
+     *
+     * @param resId a string resource ID
+     */
+    private void setStatus(int resId) {
+        //actionBar.setSubtitle(resId);
     }
+
+    /**
+     * Updates the status on the action bar.
+     *
+     * @param subTitle status
+     */
+    private void setStatus(CharSequence subTitle) {
+        //actionBar.setSubtitle(subTitle);
+    }
+
+
+    /**
+     * The Handler that gets information back from the BluetoothChatService
+     */
+
+    protected String mConnectedDeviceName;
+
+    private final Handler mHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+
+            switch (msg.what) {
+                case Constants.MESSAGE_STATE_CHANGE:
+                    switch (msg.arg1) {
+                        case BluetoothChatService.STATE_CONNECTED:
+                            setStatus(getString(R.string.connected_to, mConnectedDeviceName));
+                            initCapture();
+                            break;
+                        case BluetoothChatService.STATE_CONNECTING:
+                            setStatus(R.string.connecting);
+                            break;
+                        case BluetoothChatService.STATE_LISTEN:
+                        case BluetoothChatService.STATE_NONE:
+                            setStatus(R.string.not_connected);
+                            break;
+                    }
+                    break;
+                case Constants.MESSAGE_WRITE:
+                    //byte[] writeBuf = (byte[]) msg.obj;
+                    // construct a string from the buffer
+
+                    //own voice actions, if any
+
+                    break;
+                case Constants.MESSAGE_READ:
+                    byte[] readBuf = (byte[]) msg.obj;
+                    // construct a string from the valid bytes in the buffer
+                    String readMessage = new String(readBuf, 0, msg.arg1);
+                    Log.i("Handler", "message: " + readMessage);
+                    streamSound(readBuf);
+                    break;
+                case Constants.MESSAGE_DEVICE_NAME:
+                    // save the connected device's name
+                    mConnectedDeviceName = msg.getData().getString(Constants.DEVICE_NAME);
+                    /*if (null != activity) {
+                        Toast.makeText(activity, "Connected to "
+                                + mConnectedDeviceName, Toast.LENGTH_SHORT).show();
+                    }*/
+                    break;
+                case Constants.MESSAGE_TOAST:
+                    /*if (null != activity) {
+                        Toast.makeText(activity, msg.getData().getString(Constants.TOAST),
+                                Toast.LENGTH_SHORT).show();
+                    }*/
+                    break;
+            }
+        }
+    };
 }

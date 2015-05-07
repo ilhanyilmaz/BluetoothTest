@@ -3,4 +3,7 @@
 
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+    <string name="connected_to">Connected to</string>
+    <string name="connecting">Connecting</string>
+    <string name="not_connected">Not connected</string>
 </resources>

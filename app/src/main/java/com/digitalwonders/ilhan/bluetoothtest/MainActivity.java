@@ -25,7 +25,8 @@ public class MainActivity extends Activity {
     private BluetoothAdapter mBluetoothAdapter;
     private ArrayAdapter<String> mArrayAdapter;
     private TextView textView;
-    private Intent mServiceIntent;
+    private Intent mServerIntent;
+    private Intent mClientIntent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,13 +85,7 @@ public class MainActivity extends Activity {
         listView.setAdapter(mArrayAdapter);
         listView.setOnItemClickListener(mDeviceClickListener);
 
-        Button button = (Button) findViewById(R.id.button);
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startIntent("listening");
-            }
-        });
+        startClientIntent();
         queryPairedDevices();
 
 
@@ -98,12 +93,20 @@ public class MainActivity extends Activity {
         //mServiceIntent.setData(Uri.parse(dataUrl));
     }
 
-    protected void startIntent(String address) {
+    protected void startServerIntent(String address) {
         Log.d("BTTest", "Starting intent");
-        mServiceIntent = new Intent(this, BTSoundService.class);
-        mServiceIntent.putExtra(EXTRA_DEVICE_ADDRESS, address);
-        this.startService(mServiceIntent);
+        this.stopService(mClientIntent);
+        mClientIntent = null;
+        mServerIntent = new Intent(this, BTSoundService.class);
+        mServerIntent.putExtra(EXTRA_DEVICE_ADDRESS, address);
+        this.startService(mServerIntent);
     }
+    protected void startClientIntent() {
+        Log.d("BTTest", "Starting intent");
+        mClientIntent = new Intent(this, BTSoundService.class);
+        this.startService(mClientIntent);
+    }
+
 
     private void queryPairedDevices() {
         Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
@@ -129,7 +132,7 @@ public class MainActivity extends Activity {
 
             Log.i("BTTest", "address: " + address);
             // Create the result Intent and include the MAC address
-            startIntent(address);
+            startServerIntent(address);
 
             /*Intent intent = new Intent();
             intent.putExtra(EXTRA_DEVICE_ADDRESS, address);
