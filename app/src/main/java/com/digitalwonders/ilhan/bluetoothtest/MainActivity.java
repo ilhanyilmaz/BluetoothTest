@@ -1,5 +1,6 @@
 package com.digitalwonders.ilhan.bluetoothtest;
 
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
@@ -8,14 +9,23 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 
 import java.util.Set;
 
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends Activity {
+
+    public static String EXTRA_DEVICE_ADDRESS = "device_address";
+    private BluetoothAdapter mBluetoothAdapter;
+    private ArrayAdapter<String> mArrayAdapter;
+    private TextView textView;
+    private Intent mServiceIntent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,10 +56,7 @@ public class MainActivity extends ActionBarActivity {
 
         return super.onOptionsItemSelected(item);
     }
-    private BluetoothAdapter mBluetoothAdapter;
-    private ArrayAdapter<String> mArrayAdapter;
-    private TextView textView;
-    private Intent mServiceIntent;
+
 
     private void init() {
         textView = (TextView) findViewById(R.id.textView);
@@ -75,14 +82,27 @@ public class MainActivity extends ActionBarActivity {
         mArrayAdapter = new ArrayAdapter<String>(getApplicationContext(), R.layout.simple_list_view);
         ListView listView = (ListView) findViewById(R.id.listView);
         listView.setAdapter(mArrayAdapter);
+        listView.setOnItemClickListener(mDeviceClickListener);
 
+        Button button = (Button) findViewById(R.id.button);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startIntent("listening");
+            }
+        });
         queryPairedDevices();
 
-        Log.d("BTTest", "Starting intent");
-        mServiceIntent = new Intent(this, BTSoundService.class);
-        this.startService(mServiceIntent);
+
         //Log.d("BTTest", "Starting intent");
         //mServiceIntent.setData(Uri.parse(dataUrl));
+    }
+
+    protected void startIntent(String address) {
+        Log.d("BTTest", "Starting intent");
+        mServiceIntent = new Intent(this, BTSoundService.class);
+        mServiceIntent.putExtra(EXTRA_DEVICE_ADDRESS, address);
+        this.startService(mServiceIntent);
     }
 
     private void queryPairedDevices() {
@@ -96,4 +116,27 @@ public class MainActivity extends ActionBarActivity {
             }
         }
     }
+
+    private AdapterView.OnItemClickListener mDeviceClickListener
+            = new AdapterView.OnItemClickListener() {
+        public void onItemClick(AdapterView<?> av, View v, int arg2, long arg3) {
+            // Cancel discovery because it's costly and we're about to connect
+            //mBtAdapter.cancelDiscovery();
+
+            // Get the device MAC address, which is the last 17 chars in the View
+            String info = ((TextView) v).getText().toString();
+            String address = info.substring(info.length() - 17);
+
+            Log.i("BTTest", "address: " + address);
+            // Create the result Intent and include the MAC address
+            startIntent(address);
+
+            /*Intent intent = new Intent();
+            intent.putExtra(EXTRA_DEVICE_ADDRESS, address);
+
+            // Set result and finish this Activity
+            setResult(Activity.RESULT_OK, intent);
+            finish();*/
+        }
+    };
 }
