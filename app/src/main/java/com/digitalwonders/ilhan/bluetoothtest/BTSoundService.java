@@ -96,7 +96,6 @@ public class BTSoundService extends IntentService {
     public IBinder onBind(Intent intent) {
         Log.i("IBInder", "onBind");
         running = false;
-        stopSelf();
         return messenger.getBinder();
     }
 
@@ -248,7 +247,9 @@ public class BTSoundService extends IntentService {
             recorder.release();
             track.stop();
             track.release();
+            mChatService.stop();
         }
+        stopSelf();
     }
     protected void streamSound(byte[] buffer) {
         Log.i("BBTest", "output buffer 1: " + buffer);
@@ -317,7 +318,7 @@ public class BTSoundService extends IntentService {
                     switch (msg.arg1) {
                         case BluetoothChatService.STATE_CONNECTED:
                             Log.i("handler state change", "connected to: " + mConnectedDeviceName);
-                            initCapture();
+
                             break;
                         case BluetoothChatService.STATE_CONNECTING:
                             Log.i("handler state change", "connecting");
@@ -346,6 +347,7 @@ public class BTSoundService extends IntentService {
                     // save the connected device's name
                     mConnectedDeviceName = msg.getData().getString(Constants.DEVICE_NAME);
                     Log.i("handler", "connected to: " + mConnectedDeviceName);
+                    initCapture();
                     /*if (null != activity) {
                         Toast.makeText(activity, "Connected to "
                                 + mConnectedDeviceName, Toast.LENGTH_SHORT).show();
