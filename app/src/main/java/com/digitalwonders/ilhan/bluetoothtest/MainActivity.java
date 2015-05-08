@@ -3,25 +3,32 @@ package com.digitalwonders.ilhan.bluetoothtest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
-import android.support.v7.app.ActionBarActivity;
+import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Message;
+import android.os.Messenger;
+import android.os.RemoteException;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements ServiceConnection {
 
     public static String EXTRA_DEVICE_ADDRESS = "device_address";
     private BluetoothAdapter mBluetoothAdapter;
@@ -108,7 +115,7 @@ public class MainActivity extends Activity {
     }
     private void stopServerIntent() {
         this.stopService(mServerIntent);
-        //mServerIntent = null;
+        mServerIntent = null;
     }
 
 
@@ -136,6 +143,7 @@ public class MainActivity extends Activity {
 
             Log.i("BTTest", "address: " + address);
             //stopServerIntent();
+            bindService(mServerIntent, MainActivity.this, Context.BIND_AUTO_CREATE);
 
             Timer timer = new Timer();
             timer.schedule(new TimerTask() {
@@ -155,4 +163,39 @@ public class MainActivity extends Activity {
             finish();*/
         }
     };
+
+    private class IncomingHandler extends Handler {
+
+        @Override
+        public void handleMessage(Message msg) {
+
+            Toast.makeText(getApplicationContext(), "Message received", Toast.LENGTH_SHORT).show();
+            System.out.println("Message received!");
+            super.handleMessage(msg);
+        }
+    }
+
+    private Messenger messenger = new Messenger(new IncomingHandler());
+
+    @Override
+    public void onServiceConnected(ComponentName name, IBinder binder) {
+
+        Log.i("service", "connected");
+        Message message = Message.obtain();
+        message.replyTo = messenger;
+
+        try {
+            new Messenger(binder).send(message);
+        } catch (RemoteException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onServiceDisconnected(ComponentName name) {
+        Log.i("service", "disconnected");
+        // TODO Auto-generated method stub
+        stopServerIntent();
+    }
 }

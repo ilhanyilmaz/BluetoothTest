@@ -14,7 +14,9 @@ import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
+import android.os.Messenger;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -55,6 +57,7 @@ public class BTSoundService extends IntentService {
 
     private BluetoothChatService mChatService = null;
 
+    private int minBufferSize = 512;
     public BTSoundService() {
         super("BTSoundService");
 
@@ -74,7 +77,28 @@ public class BTSoundService extends IntentService {
         }
     };
 
+    private class IncomingHandler extends Handler {
 
+        @Override
+        public void handleMessage(Message message) {
+
+            if (message.replyTo != null) {
+                outMessenger = message.replyTo;
+            }
+        }
+    }
+
+    private Messenger messenger = new Messenger(new IncomingHandler());
+    private Messenger outMessenger = null;
+
+    private boolean running = true;
+    @Override
+    public IBinder onBind(Intent intent) {
+        Log.i("IBInder", "onBind");
+        running = false;
+        stopSelf();
+        return messenger.getBinder();
+    }
 
 
     @Override
@@ -151,18 +175,19 @@ public class BTSoundService extends IntentService {
          */
         try
         {
-            int N = AudioRecord.getMinBufferSize(8000, AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT);
-            recorder = new AudioRecord(MediaRecorder.AudioSource.MIC, 8000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, N*10);
+            //minBufferSize = AudioRecord.getMinBufferSize(8000, AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT);
+            recorder = new AudioRecord(MediaRecorder.AudioSource.MIC, 8000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, minBufferSize);
             track = new AudioTrack(AudioManager.STREAM_MUSIC, 8000,
-                    AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT, N*10, AudioTrack.MODE_STREAM);
+                    AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT, minBufferSize, AudioTrack.MODE_STREAM);
             recorder.startRecording();
-            Log.i("BBTest", "buffer size: " + N);
+            Log.i("BBTest", "buffer size: " + minBufferSize);
             //track.play();
             /*
              * Loops until something outside of this thread stops it.
              * Reads the data from the recorder and writes it to the audio track for playback.
              */
-            while(true)
+            int N;
+            while(running)
             {
                 //Log.i("Map", "Writing new data to buffer");
                 short[] buffer = buffers[ix++ % buffers.length];
@@ -215,8 +240,10 @@ public class BTSoundService extends IntentService {
          */
         finally
         {
-            timer.cancel();
-            timer = null;
+            if(timer != null) {
+                timer.cancel();
+                timer = null;
+            }
             recorder.stop();
             recorder.release();
             track.stop();
@@ -276,25 +303,6 @@ public class BTSoundService extends IntentService {
     }
 
     /**
-     * Updates the status on the action bar.
-     *
-     * @param resId a string resource ID
-     */
-    private void setStatus(int resId) {
-        //actionBar.setSubtitle(resId);
-    }
-
-    /**
-     * Updates the status on the action bar.
-     *
-     * @param subTitle status
-     */
-    private void setStatus(CharSequence subTitle) {
-        //actionBar.setSubtitle(subTitle);
-    }
-
-
-    /**
      * The Handler that gets information back from the BluetoothChatService
      */
 
@@ -308,15 +316,15 @@ public class BTSoundService extends IntentService {
                 case Constants.MESSAGE_STATE_CHANGE:
                     switch (msg.arg1) {
                         case BluetoothChatService.STATE_CONNECTED:
-                            setStatus(getString(R.string.connected_to, mConnectedDeviceName));
+                            Log.i("handler state change", "connected to: " + mConnectedDeviceName);
                             initCapture();
                             break;
                         case BluetoothChatService.STATE_CONNECTING:
-                            setStatus(R.string.connecting);
+                            Log.i("handler state change", "connecting");
                             break;
                         case BluetoothChatService.STATE_LISTEN:
                         case BluetoothChatService.STATE_NONE:
-                            setStatus(R.string.not_connected);
+                            Log.i("handler state change", "not connected");
                             break;
                     }
                     break;
@@ -337,6 +345,7 @@ public class BTSoundService extends IntentService {
                 case Constants.MESSAGE_DEVICE_NAME:
                     // save the connected device's name
                     mConnectedDeviceName = msg.getData().getString(Constants.DEVICE_NAME);
+                    Log.i("handler", "connected to: " + mConnectedDeviceName);
                     /*if (null != activity) {
                         Toast.makeText(activity, "Connected to "
                                 + mConnectedDeviceName, Toast.LENGTH_SHORT).show();
