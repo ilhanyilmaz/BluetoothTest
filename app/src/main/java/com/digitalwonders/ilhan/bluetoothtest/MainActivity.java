@@ -17,6 +17,8 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 public class MainActivity extends Activity {
@@ -85,7 +87,7 @@ public class MainActivity extends Activity {
         listView.setAdapter(mArrayAdapter);
         listView.setOnItemClickListener(mDeviceClickListener);
 
-        startClientIntent();
+        startServerIntent();
         queryPairedDevices();
 
 
@@ -93,18 +95,20 @@ public class MainActivity extends Activity {
         //mServiceIntent.setData(Uri.parse(dataUrl));
     }
 
-    protected void startServerIntent(String address) {
-        Log.d("BTTest", "Starting intent");
-        this.stopService(mClientIntent);
-        mClientIntent = null;
+    protected void startClientIntent(String address) {
+        Log.d("BTTest", "Starting client intent");
+        mClientIntent = new Intent(this, BTSoundService.class);
+        mClientIntent.putExtra(EXTRA_DEVICE_ADDRESS, address);
+        this.startService(mClientIntent);
+    }
+    protected void startServerIntent() {
+        Log.d("BTTest", "Starting server intent");
         mServerIntent = new Intent(this, BTSoundService.class);
-        mServerIntent.putExtra(EXTRA_DEVICE_ADDRESS, address);
         this.startService(mServerIntent);
     }
-    protected void startClientIntent() {
-        Log.d("BTTest", "Starting intent");
-        mClientIntent = new Intent(this, BTSoundService.class);
-        this.startService(mClientIntent);
+    private void stopServerIntent() {
+        this.stopService(mServerIntent);
+        //mServerIntent = null;
     }
 
 
@@ -128,11 +132,20 @@ public class MainActivity extends Activity {
 
             // Get the device MAC address, which is the last 17 chars in the View
             String info = ((TextView) v).getText().toString();
-            String address = info.substring(info.length() - 17);
+            final String address = info.substring(info.length() - 17);
 
             Log.i("BTTest", "address: " + address);
+            //stopServerIntent();
+
+            Timer timer = new Timer();
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    startClientIntent(address);
+                }
+            }, 3000);
             // Create the result Intent and include the MAC address
-            startServerIntent(address);
+            //startClientIntent(address);
 
             /*Intent intent = new Intent();
             intent.putExtra(EXTRA_DEVICE_ADDRESS, address);

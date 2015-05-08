@@ -74,6 +74,9 @@ public class BTSoundService extends IntentService {
         }
     };
 
+
+
+
     @Override
     protected void onHandleIntent(Intent workIntent) {
         // Gets data from the incoming Intent
@@ -340,6 +343,7 @@ public class BTSoundService extends IntentService {
                     }*/
                     break;
                 case Constants.MESSAGE_TOAST:
+                    Log.i("Handler", "toast message: " + msg.getData().getString(Constants.TOAST));
                     /*if (null != activity) {
                         Toast.makeText(activity, msg.getData().getString(Constants.TOAST),
                                 Toast.LENGTH_SHORT).show();

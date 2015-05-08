@@ -442,6 +442,13 @@ public class BluetoothChatService {
                 try {
                     // Read from the InputStream
                     bytes = mmInStream.read(buffer);
+                    Log.i("BTCS", "message: " + new String(buffer,0,bytes));
+
+                    Message msg = mHandler.obtainMessage(Constants.MESSAGE_TOAST);
+                    Bundle bundle = new Bundle();
+                    bundle.putString(Constants.TOAST, "Fuck this shit!!!");
+                    msg.setData(bundle);
+                    mHandler.sendMessage(msg);
 
                     // Send the obtained bytes to the UI Activity
                     mHandler.obtainMessage(Constants.MESSAGE_READ, bytes, -1, buffer)
